@@ -194,9 +194,16 @@ function environment_custom_debug_permissions($status = TRUE) {
     'access devel information' => $status,
   );
 
+  $registred_perms = user_permission_get_modules();
+  $perms_to_set = array();
+  foreach($permissions as $perm => $value) {
+    if (isset($registred_perms[$perm])) {
+        $perms_to_set[$perm] = $value;
+    }
+  }
   foreach ($roles as $role) {
     // Set permission to get access to devel info.
-    user_role_change_permissions($role, $permissions);
+    user_role_change_permissions($role, $perms_to_set);
   }
 
   return array_keys($permissions);
