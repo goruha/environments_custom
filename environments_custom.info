@@ -1,7 +1,8 @@
 ; $Id$
 name = Environments custom
 description = Environments for current site
-core = 7.x
+core = 6.x
 package = "Develop"
 project = "Develop"
 dependencies[] = environment
+dependencies[] = permissions_api

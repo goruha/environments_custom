@@ -38,7 +38,8 @@ function environments_custom_environment_switch($target_env, $current_env) {
     'migrate_ui',
     'maillog',
     'field_ui',
-    'rules_ui'    
+    'rules_ui',
+    'admin_menu',
   ));
 
   $devel_modules = environments_custom_module_exist(array(
@@ -54,7 +55,7 @@ function environments_custom_environment_switch($target_env, $current_env) {
 
   switch ($target_env) {
     case ENVIRONMENT_PRODUCTION:
-      $debug_permissions = environment_custom_debug_permissions(FALSE);
+      $debug_permissions = environments_custom_debug_permissions(FALSE);
       drupal_set_message(t('Disabled debug permissions: <br />@modules', array(
         '@modules' => implode(', ', $debug_permissions),
       )));
@@ -81,9 +82,9 @@ function environments_custom_environment_switch($target_env, $current_env) {
       drupal_set_message(t('Enabled debug modules: <br />@modules', array(
         '@modules' => implode(', ', $debug_modules),
       )));
-      $debug_permissins = environment_custom_debug_permissions(TRUE);
+      $debug_permissions = environments_custom_debug_permissions(TRUE);
       drupal_set_message(t('Enabled debug permissions: <br />@modules', array(
-        '@modules' => implode(', ', $debug_permissins),
+        '@modules' => implode(', ', $debug_permissions),
       )));
       module_enable($devel_modules);
       drupal_set_message(t('Enabled development modules: <br />@modules', array(
@@ -105,9 +106,9 @@ function environments_custom_environment_switch($target_env, $current_env) {
       drupal_set_message(t('Enabled debug modules: <br />@modules', array(
         '@modules' => implode(', ', $debug_modules),
       )));
-      $debug_permissins = environment_custom_debug_permissions(TRUE);
+      $debug_permissions = environments_custom_debug_permissions(TRUE);
       drupal_set_message(t('Enabled debug permissions: <br />@modules', array(
-        '@modules' => implode(', ', $debug_permissins),
+        '@modules' => implode(', ', $debug_permissions),
       )));
       module_disable($devel_modules);
       drupal_set_message(t('Disabled developement modules: <br />@modules', array(
@@ -128,9 +129,9 @@ function environments_custom_environment_switch($target_env, $current_env) {
       drupal_set_message(t('Enabled debug modules: <br />@modules', array(
         '@modules' => implode(', ', $debug_modules),
       )));
-      $debug_permissins = environment_custom_debug_permissions(TRUE);
+      $debug_permissions = environments_custom_debug_permissions(TRUE);
       drupal_set_message(t('Enabled debug permissions: <br />@modules', array(
-        '@modules' => implode(', ', $debug_permissins),
+        '@modules' => implode(', ', $debug_permissions),
       )));
       module_enable($devel_modules);
       drupal_set_message(t('Enabled development modules: <br />@modules', array(
@@ -184,31 +185,32 @@ function environments_custom_environment() {
  * @return array
  *   Permissions list.
  */
-function environment_custom_debug_permissions($status = TRUE) {
+function environments_custom_debug_permissions($status = TRUE) {
   $roles = array(
-    // Anonymous.
-    1,
-    // Authenticated.
-    2,
+    'anonymous user',
+    'authenticated user',
   );
 
   $permissions = array(
-    'access devel information' => $status,
+    'access devel information',
   );
 
-  $registred_perms = user_permission_get_modules();
+  $registred_perms = environments_custom_permission_get_modules();
   $perms_to_set = array();
-  foreach($permissions as $perm => $value) {
+  foreach($permissions as $perm) {
     if (isset($registred_perms[$perm])) {
-        $perms_to_set[$perm] = $value;
+        $perms_to_set[] = $perm;
     }
   }
   foreach ($roles as $role) {
     // Set permission to get access to devel info.
-    user_role_change_permissions($role, $perms_to_set);
+    if ($status) {
+      permissions_grant_permissions($role, $perms_to_set);
+    } else {
+      permissions_revoke_permissions($role, $perms_to_set);
+    }
   }
-
-  return array_keys($permissions);
+  return $perms_to_set;
 }
 
 
@@ -223,18 +225,34 @@ function environment_custom_debug_permissions($status = TRUE) {
  */
 function environments_custom_module_exist($modules = array()) {
   // Get all modules in system.
-  $all_modules = db_query("
+  $all_modules = array();
+  $db_result = db_query("
       SELECT name
       FROM {system}
       WHERE type = 'module'
-    ")->fetchAllAssoc('name');
+    ");
+
+  while ($db_module = db_fetch_array($db_result)){
+    $all_modules[] = $db_module['name'];
+  }
 
   // Remove module from $modules if there is no such module in system.
   foreach ($modules as $key => $module) {
-    if (!array_key_exists($module, $all_modules)) {
+    if (!in_array($module, $all_modules)) {
       unset($modules[$key]);
     }
   }
 
   return $modules;
+}
+
+function environments_custom_permission_get_modules() {
+  $permissions = array();
+  foreach (module_implements('perm') as $module) {
+    $perms = module_invoke($module, 'perm');
+    foreach ($perms as $key => $value) {
+      $permissions[$key] = $module;
+    }
+  }
+  return $permissions;
 }
