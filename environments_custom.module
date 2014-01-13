@@ -250,8 +250,8 @@ function environments_custom_permission_get_modules() {
   $permissions = array();
   foreach (module_implements('perm') as $module) {
     $perms = module_invoke($module, 'perm');
-    foreach ($perms as $key => $value) {
-      $permissions[$key] = $module;
+    foreach ($perms as $value) {
+      $permissions[$value] = $module;
     }
   }
   return $permissions;
